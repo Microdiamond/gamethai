@@ -11,12 +11,92 @@
         margin: 0;
         padding: 0;
         font-family: Arial, sans-serif;
-        justify-content: unset;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .periphery {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
     }
 
     #content {
         transition: margin-left 0.3s;
         width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: linear-gradient(to right, #ff7e5f, #feb47b); /* Ensure background covers content area */
+    }
+
+    .container {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 2vh;
+    }
+
+    .wrap {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .asx {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(6, 1fr);
+        gap: 0.5vh;
+        width: 95%;
+        height: 95%;
+        max-width: 1400px;
+        justify-items: stretch;
+        align-content: stretch;
+    }
+
+    .asx .boxS {
+        width: auto !important;
+        height: auto !important;
+        margin: 0 !important;
+        font-size: min(8vh, 8vw) !important; /* Increased font size */
+        font-weight: bold;
+        line-height: 1; /* Keep it tight */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.25);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: transform 0.2s, background 0.2s;
+    }
+
+    /* Mobile/Portrait responsiveness */
+    @media (max-width: 768px) or (max-aspect-ratio: 1/1) {
+        .asx {
+             grid-template-columns: repeat(5, 1fr);
+             grid-template-rows: repeat(10, 1fr);
+        }
+    }
+
+    .asx .boxS:hover {
+        transform: scale(1.05);
+        background: rgba(255, 255, 255, 0.5);
+        z-index: 10;
+    }
+
+    .tAlpa {
+        width: auto !important;
     }
 
     #toggle-btn {
@@ -28,11 +108,9 @@
         color: white;
         background-color: #333;
         border: none;
-    }
-
-    .periphery{
-        display: flex;
-        width: 100%;
+        z-index: 100;
+        padding: 5px 10px;
+        border-radius: 5px;
     }
 </style>
 

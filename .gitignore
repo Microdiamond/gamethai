@@ -1,0 +1,20 @@
+# Database files
+gamethai_scores.db
+*.sqlite
+*.sqlite3
+
+# User Uploads
+uploads/
+tmp/
+
+# System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+error_log
+
+# Environment / Config (Optional but recommended)
+# db.php

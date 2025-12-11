@@ -34,9 +34,16 @@
 
 <body>
     <div id="sidebar">
-        <a href="/gamethai/" onclick="">Home</a>
-        <a href="/gamethai/randomvocab" onclick="goto('rdv')">randomvocab</a>
-        <a href="/gamethai/board" onclick="goto('rdv')">ThaiAlphabet</a>
+        <a href="/index.php" onclick="">Home</a>
+        <a href="/randomvocab.php" onclick="goto('rdv')">randomvocab</a>
+        <a href="/board.php" onclick="goto('rdv')">ThaiAlphabet</a>
+        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #555;">
+        <span style="padding-left: 15px; color: #888; font-size: 14px; font-weight: bold;">Mini Games</span>
+        <a href="/game_spelling.php">เกมสะกดคำ</a>
+        <a href="/game_hangman.php">เกม Hangman</a>
+        <a href="/game_categorizer.php">เกมไตรยางศ์</a>
+        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #555;">
+        <a href="/manage_data.php" style="color: #fbbf24;">จัดการข้อมูล</a>
     </div>
 </body>
 
