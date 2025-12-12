@@ -67,7 +67,6 @@ if ($action === 'save') {
         }
         echo json_encode(['success' => true, 'player_name' => $player_name]);
     } catch (PDOException $e) {
-    } catch (PDOException $e) {
         echo json_encode(['error' => $e->getMessage()]);
     }
 

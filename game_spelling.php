@@ -127,28 +127,6 @@
         .score-item:nth-child(odd) { background-color: #f9fafb; }
         .score-item:nth-child(even) { background-color: #ffffff; }
     </style>
-    
-    <!-- Firebase -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Firebase Config
-        const firebaseConfig = {
-             // Note: User didn't provide config in the file but used placeholder. 
-             // Accessing from window if available or using placeholders.
-             // For this output, I will assume the same loading mechanism as demo3g.php
-        };
-        // Reuse the logic from demo3g.php for initialization
-        
-        async function initializeFirebase() {
-             // In a real scenario, these would be populated. 
-             // Check if user provided config in demo3g.php via some variable? 
-             // In demo3g.php step 53, it read `__firebase_config`. 
-             // We will copy that logic.
-        }
-    </script>
 </head>
 <body>
     <div class="periphery">
@@ -203,15 +181,92 @@
             processingWin: false
         };
 
-// ... (abridged)
+        const spellingTargetWordEl = document.getElementById('spelling-target-word');
+        const spellingLetterTilesEl = document.getElementById('spelling-letter-tiles');
+        const spellingTimerEl = document.getElementById('spelling-timer');
+        const spellingWordCounterEl = document.getElementById('spelling-word-counter');
+        const spellingMessageBoxEl = document.getElementById('spelling-message-box');
+        const spellingStartResetButtonEl = document.getElementById('spelling-start-reset-button');
+        const spellingPauseResumeButtonEl = document.getElementById('spelling-pause-resume-button');
+        const spellingUndoButtonEl = document.getElementById('spelling-undo-button');
+        const highScoresEl = document.getElementById('high-scores');
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function segmentThaiWord(word) {
+            const segments = [];
+            let currentSegment = '';
+            const newSegmentStartRegex = /^[ก-ฮ\s\dเแโใไ]/;
+            for (const char of word) {
+                if (newSegmentStartRegex.test(char)) {
+                    if (currentSegment) segments.push(currentSegment);
+                    currentSegment = char;
+                } else {
+                    currentSegment += char;
+                }
+            }
+            if (currentSegment) segments.push(currentSegment);
+            return segments.filter(s => s.trim() !== '');
+        }
+
+        function updateSpellingStartResetButtonText() {
+            if (spellingGameState.isGameActive) {
+                spellingStartResetButtonEl.textContent = 'รีเซ็ตเกม';
+                spellingStartResetButtonEl.classList.replace('bg-emerald-500', 'bg-gray-500');
+                spellingStartResetButtonEl.classList.replace('hover:bg-emerald-600', 'hover:bg-gray-600');
+            } else {
+                spellingStartResetButtonEl.textContent = 'เริ่มใหม่';
+                spellingStartResetButtonEl.classList.replace('bg-gray-500', 'bg-emerald-500');
+                spellingStartResetButtonEl.classList.replace('hover:bg-gray-600', 'hover:bg-emerald-600');
+            }
+        }
+
+        window.handleSpellingStartResetClick = function() {
+            if (spellingGameState.isGameActive) {
+                cleanupSpellingGameState();
+                prepareFirstSpellingWordForStartScreen();
+                spellingMessageBoxEl.textContent = 'เกมถูกรีเซ็ต กด "เริ่มใหม่" เพื่อเริ่ม';
+            } else {
+                startSpellingGame();
+            }
+        };
+
+        function startSpellingGame() {
+            if (spellingGameState.isGameActive) return;
+            spellingGameState.isGameActive = true;
+            spellingPauseResumeButtonEl.disabled = false;
+            updateSpellingStartResetButtonText();
+            startSpellingTimer();
+        }
 
         function cleanupSpellingGameState() {
             stopSpellingTimer();
             spellingGameState.isGameActive = false;
             spellingGameState.isPaused = false;
-            spellingGameState.processingWin = false; // Reset flag
+            spellingGameState.processingWin = false;
             spellingGameState.totalTime = 0;
-// ... (abridged)
+            spellingGameState.wordIndex = 0;
+            spellingTimerEl.textContent = '00:00';
+            spellingWordCounterEl.textContent = 'คำที่ 0 / 5';
+            spellingTargetWordEl.innerHTML = '';
+            spellingLetterTilesEl.innerHTML = '';
+            spellingUndoButtonEl.disabled = true;
+            spellingPauseResumeButtonEl.disabled = true;
+            spellingPauseResumeButtonEl.textContent = 'หยุดเวลา';
+            spellingPauseResumeButtonEl.classList.replace('bg-gray-500', 'bg-red-500');
             
             spellingGameState.currentWord = '';
             spellingGameState.targetLetters = [];
@@ -222,18 +277,158 @@
             updateSpellingStartResetButtonText();
         }
 
-// ... (abridged)
+        function prepareFirstSpellingWordForStartScreen() {
+            spellingGameState.wordIndex = 0;
+            spellingGameState.currentWord = '';
+            spellingGameState.targetLetters = [];
+            spellingTargetWordEl.innerHTML = '';
+            spellingLetterTilesEl.innerHTML = '';
+            spellingWordCounterEl.textContent = `คำที่ 0 / ${SPELLING_WORDS_TO_PLAY}`;
+            startNewSpellingWord(false);
+            spellingMessageBoxEl.textContent = `คำศัพท์แรกพร้อมแล้ว! กด "เริ่มใหม่" เพื่อเล่น`;
+        }
+
+        function startSpellingTimer() {
+            if (!spellingGameState.isGameActive || (!spellingGameState.isPaused && spellingGameState.timerInterval)) return;
+            if (spellingGameState.timerInterval) clearInterval(spellingGameState.timerInterval);
+            
+            spellingGameState.lastTimeUpdate = Date.now();
+            spellingGameState.isPaused = false;
+            spellingPauseResumeButtonEl.textContent = 'หยุดเวลา';
+            spellingPauseResumeButtonEl.classList.replace('bg-gray-500', 'bg-red-500');
+            spellingMessageBoxEl.textContent = `สะกดคำศัพท์ ${spellingGameState.targetLetters.length} ส่วน`;
+
+            spellingGameState.timerInterval = setInterval(() => {
+                if (!spellingGameState.isGameActive || spellingGameState.isPaused) return;
+                const currentTime = Date.now();
+                spellingGameState.totalTime += (currentTime - spellingGameState.lastTimeUpdate);
+                spellingGameState.lastTimeUpdate = currentTime;
+                spellingTimerEl.textContent = formatTime(spellingGameState.totalTime);
+            }, 100);
+            
+            enableSpellingTileInteraction();
+        }
+
+        function pauseSpellingTimer() {
+            if (!spellingGameState.isGameActive || spellingGameState.isPaused) return;
+            clearInterval(spellingGameState.timerInterval);
+            spellingGameState.timerInterval = null;
+            spellingGameState.totalTime += Date.now() - spellingGameState.lastTimeUpdate;
+            spellingGameState.isPaused = true;
+            spellingPauseResumeButtonEl.textContent = 'เล่นต่อ';
+            spellingPauseResumeButtonEl.classList.replace('bg-red-500', 'bg-gray-500');
+            spellingMessageBoxEl.textContent = 'เกมหยุดชั่วคราว...';
+            spellingUndoButtonEl.disabled = true;
+            spellingGameState.availableTiles.forEach(tile => tile.onclick = null);
+        }
+
+        window.pauseResumeSpellingGame = function() {
+            if (!spellingGameState.isGameActive) return;
+            if (spellingGameState.isPaused) startSpellingTimer();
+            else pauseSpellingTimer();
+        };
+
+        function stopSpellingTimer() {
+            clearInterval(spellingGameState.timerInterval);
+            spellingGameState.timerInterval = null;
+            spellingGameState.isPaused = false;
+        }
 
         function startNewSpellingWord(updateWordIndex = true) {
-            spellingGameState.processingWin = false; // Reset flag
+            spellingGameState.processingWin = false;
             if (updateWordIndex) {
-// ... (abridged)
+                if (spellingGameState.wordIndex >= SPELLING_WORDS_TO_PLAY) {
+                    endSpellingGame();
+                    return;
+                }
+                spellingGameState.wordIndex++;
+                spellingWordCounterEl.textContent = `คำที่ ${spellingGameState.wordIndex} / ${SPELLING_WORDS_TO_PLAY}`;
+            }
+
+            spellingGameState.builtWord = [];
+            spellingGameState.placedTiles = [];
+            spellingTargetWordEl.innerHTML = '';
+            spellingLetterTilesEl.innerHTML = '';
+            
+            const targetWord = THAI_WORDS[Math.floor(Math.random() * THAI_WORDS.length)];
+            spellingGameState.currentWord = targetWord;
+            spellingGameState.targetLetters = segmentThaiWord(targetWord);
+
+            spellingGameState.targetBoxes = spellingGameState.targetLetters.map(() => {
+                const box = document.createElement('div');
+                box.className = 'target-box';
+                spellingTargetWordEl.appendChild(box);
+                return box;
+            });
+
+            let tileLetters = [...spellingGameState.targetLetters];
+            const numDistractors = Math.min(MAX_DISTRACTORS, DISTRACTOR_POOL.length);
+            for(let i=0; i<numDistractors; i++) {
+                 tileLetters.push(DISTRACTOR_POOL[Math.floor(Math.random() * DISTRACTOR_POOL.length)]);
+            }
+
+            spellingGameState.availableTiles = [];
+            const enableClick = spellingGameState.isGameActive && !spellingGameState.isPaused;
+            shuffleArray(tileLetters).forEach(letter => {
+                const tile = document.createElement('div');
+                tile.className = 'tile p-1'; 
+                tile.textContent = letter;
+                tile.dataset.letter = letter;
+                tile.onclick = enableClick ? () => handleSpellingTileClick(tile) : null;
+                spellingLetterTilesEl.appendChild(tile);
+                spellingGameState.availableTiles.push(tile);
+            });
+            
+            spellingUndoButtonEl.disabled = true;
+        }
+
+        function enableSpellingTileInteraction() {
+            spellingGameState.availableTiles.forEach(tile => {
+                if (!tile.classList.contains('disabled')) {
+                    tile.onclick = () => handleSpellingTileClick(tile);
+                }
+            });
+            if (spellingGameState.placedTiles.length > 0) spellingUndoButtonEl.disabled = false;
+        }
+
+        function handleSpellingTileClick(tileEl) {
+            if (!spellingGameState.isGameActive || spellingGameState.isPaused) return;
+            const targetIndex = spellingGameState.builtWord.length;
+            if (targetIndex >= spellingGameState.targetBoxes.length) return;
+
+            const targetBox = spellingGameState.targetBoxes[targetIndex];
+            const letter = tileEl.dataset.letter;
+
+            targetBox.textContent = letter;
+            targetBox.classList.add('filled');
+            tileEl.classList.add('disabled');
+            tileEl.onclick = null; 
+
+            spellingGameState.builtWord.push(letter);
+            spellingGameState.placedTiles.push({ tileEl, boxEl: targetBox });
+            spellingUndoButtonEl.disabled = false;
+
+            if (spellingGameState.builtWord.length === spellingGameState.targetBoxes.length) {
+                checkSpellingWord();
+            }
+        }
+
+        window.undoLastSpellingTile = function() {
+            if (!spellingGameState.isGameActive || spellingGameState.placedTiles.length === 0 || spellingGameState.isPaused) return;
+            const lastPlacement = spellingGameState.placedTiles.pop();
+            const { tileEl, boxEl } = lastPlacement;
+            boxEl.textContent = ''; boxEl.classList.remove('filled');
+            tileEl.classList.remove('disabled');
+            tileEl.onclick = () => handleSpellingTileClick(tileEl);
+            spellingGameState.builtWord.pop();
+            if (spellingGameState.placedTiles.length === 0) spellingUndoButtonEl.disabled = true;
+        };
 
         function checkSpellingWord() {
-            if (spellingGameState.isPaused || spellingGameState.processingWin) return; // Check flag
+            if (spellingGameState.isPaused || spellingGameState.processingWin) return;
             const currentGuess = spellingGameState.builtWord.join('');
             if (currentGuess === spellingGameState.currentWord) {
-                spellingGameState.processingWin = true; // Set flag
+                spellingGameState.processingWin = true;
                 spellingMessageBoxEl.textContent = `ถูกต้อง! คำว่า: ${spellingGameState.currentWord}`;
                 pauseSpellingTimer();
                 spellingGameState.targetBoxes.forEach(box => box.classList.add('correct-animation'));
@@ -243,7 +438,6 @@
                     startSpellingTimer(); 
                 }, 1500);
             } else {
-// ...
                 spellingMessageBoxEl.textContent = 'ผิด! ลองใหม่';
                 spellingTargetWordEl.classList.add('incorrect-shake');
                 setTimeout(() => spellingTargetWordEl.classList.remove('incorrect-shake'), 300);
@@ -251,14 +445,16 @@
         }
 
         function endSpellingGame() {
-            cleanupSpellingGameState();
-            const finalTime = spellingGameState.totalTime;
+            stopSpellingTimer(); // Stop timer locally first to ensure no more updates
+            const finalTime = spellingGameState.totalTime; // Capture time BEFORE cleanup
+            cleanupSpellingGameState(); // Now cleanup (state reset)
+            
             spellingMessageBoxEl.innerHTML = `<p class="text-2xl font-extrabold text-blue-700">เวลาทั้งหมด: ${formatTime(finalTime)}</p>`;
             
             // Prompt for Name
             setTimeout(() => {
                 let playerName = prompt("ยินดีด้วย! กรุณาใส่ชื่อของคุณเพื่อบันทึกคะแนน:", "ผู้เล่น");
-                if (playerName === null) return; // Cancelled
+                if (playerName === null) return;
                 playerName = playerName.trim();
                 
                 saveSpellingGameResult(playerName, finalTime);
